@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+# =========================================================================
+# PROJETO: Piper Book Reader TUI
+# USO: python3 ler livro.txt
+#
+# DEPENDÊNCIAS E INSTALAÇÃO:
+# -------------------------------------------------------------------------
+# DEBIAN/UBUNTU: sudo apt update && sudo apt install python3 alsa-utils
+# ARCH LINUX:    sudo pacman -S python alsa-utils
+# TERMUX:        pkg install python alsa-utils-aplay
+# =========================================================================
+# # =========================================================================
+# DEPENDÊNCIAS PARA EXECUTAR O PIPER BOOK READER TUI
+# =========================================================================
+#
+# REQUISITOS GERAIS (TODOS OS SISTEMAS)
+# - Python 3.x
+# - ALSA (aplay)
+# - Biblioteca libasound2
+# - Piper TTS (binário piper)
+# - Modelos de voz .onnx compatíveis (ex: pt_BR-faber-medium.onnx)
+#
+# -------------------------------------------------------------------------
+# DEBIAN / UBUNTU
+# sudo apt update
+# sudo apt install python3 python3-venv python3-pip alsa-utils libasound2 libstdc++6
+#
+# -------------------------------------------------------------------------
+# ARCH LINUX
+# sudo pacman -S python alsa-utils
+# (Opcional AUR)
+# yay -S piper-tts
+#
+# -------------------------------------------------------------------------
+# TERMUX (Android)
+# pkg update
+# pkg install python alsa-utils pulseaudio
+# pulseaudio --start
+#
+# -------------------------------------------------------------------------
+# OBSERVAÇÕES IMPORTANTES
+# - O binário "piper" deve estar dentro da pasta ./piper
+# - As vozes .onnx devem estar dentro da pasta ./piper
+# - O script usa apenas bibliotecas padrão do Python:
+#   curses, subprocess, time, sys, re, textwrap, json, os, hashlib
+# - Não é necessário instalar pacotes via pip
+#
+# TESTE RÁPIDO DE ÁUDIO:
+# echo "teste" | ./piper/piper --model piper/pt_BR-faber-medium.onnx --output_raw | \
+# aplay -r 22050 -f S16_LE -t raw
+#
+# =========================================================================
+
+import curses, subprocess, time, sys, re, textwrap, json, os, hashlib
+
+# --- CONFIGURAÇÃO DE CAMINHOS ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PIPER_FOLDER = os.path.join(BASE_DIR, "piper")
+PIPER_EXE = os.path.join(PIPER_FOLDER, "piper")
+
+# --- LISTA DE VOZES ---
+VOICES = ["pt_BR-faber-medium.onnx", "pt_BR-cadu-medium.onnx", "pt_BR-jeff-medium.onnx"]
+voice_index = 0
+SAVE_DIR = os.path.expanduser("~/.local/share/tts_reader")
+
+def split_sentences(text):
+    return [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+
+def speak_sentence(sentence, speed, model_name):
+    length_scale = 160 / speed if speed > 0 else 1.0
+    model_path = os.path.join(PIPER_FOLDER, model_name)
+    comando = (
+        f'echo "{sentence}" | LD_LIBRARY_PATH={PIPER_FOLDER} {PIPER_EXE} '
+        f'--model {model_path} --length_scale {length_scale} --output_raw | '
+        f'aplay -r 22050 -f S16_LE -t raw'
+    )
+    return subprocess.Popen(comando, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+def file_id(path): return hashlib.sha1(path.encode()).hexdigest()
+def save_path(filename):
+    os.makedirs(SAVE_DIR, exist_ok=True)
+    return os.path.join(SAVE_DIR, f"{os.path.basename(filename)}.{file_id(filename)}.json")
+
+def save_state(path, pos, speed, v_idx):
+    with open(path, "w") as f: json.dump({"sentence": pos, "speed": speed, "voice_idx": v_idx}, f)
+
+def load_state(path):
+    if not os.path.exists(path): return None
+    with open(path) as f:
+        try: return json.load(f)
+        except: return None
+
+def draw_progress(stdscr, pos, total, y, w):
+    bar_width = max(10, w - 15)
+    filled = int(bar_width * (pos + 1) / total)
+    bar = "█" * filled + "░" * (bar_width - filled)
+    try: stdscr.addstr(y, 0, f"[{bar}] {pos+1}/{total}")
+    except curses.error: pass
+
+def main(stdscr, filename):
+    global voice_index
+    curses.curs_set(0)
+    stdscr.nodelay(True)
+    stdscr.keypad(True)
+
+    if not os.path.exists(PIPER_EXE):
+        stdscr.addstr(0, 0, "ERRO: Piper não encontrado na pasta /piper")
+        stdscr.refresh(); time.sleep(3); return
+
+    with open(filename, "r", encoding="utf-8", errors="replace") as f: text = f.read()
+    sentences = split_sentences(text)
+    total = len(sentences)
+    if total == 0: return
+
+    savefile = save_path(filename)
+    state = load_state(savefile)
+    pos, speed, voice_index = (state["sentence"], state["speed"], state.get("voice_idx", 0)) if state else (0, 160, 0)
+    
+    paused, proc = False, None
+
+    while True:
+        stdscr.erase()
+        h, w = stdscr.getmaxyx()
+        
+        # Exibição do Texto
+        start, y_cursor = max(0, pos - 1), 0
+        wrapper = textwrap.TextWrapper(width=w - 2)
+        for i in range(start, total):
+            for line in wrapper.wrap(sentences[i]):
+                if y_cursor < h - 4:
+                    try:
+                        stdscr.addstr(y_cursor, 0, line[:w-1], curses.A_REVERSE if i == pos else curses.A_NORMAL)
+                        y_cursor += 1
+                    except: pass
+            if y_cursor >= h - 4: break
+
+        # Nome da Voz Limpo
+        v_name = VOICES[voice_index].replace("pt_BR-", "").replace("-medium.onnx", "").capitalize()
+        
+        draw_progress(stdscr, pos, total, h - 3, w)
+        menu = f"Voz v {v_name} Vel ^ v {speed} Navegar p < > n Espaço Pausa q Sair"
+        try: stdscr.addstr(h - 2, 0, menu[:w-1])
+        except: pass
+        stdscr.refresh()
+
+        if not paused and proc is None:
+            proc = speak_sentence(sentences[pos], speed, VOICES[voice_index])
+
+        key = stdscr.getch()
+        if key == ord('q'):
+            save_state(savefile, pos, speed, voice_index)
+            if proc: proc.terminate()
+            break
+        elif key == ord(' '):
+            paused = not paused
+            if paused and proc: proc.terminate(); proc = None
+        elif key == ord('v'):
+            if proc: proc.terminate()
+            voice_index = (voice_index + 1) % len(VOICES)
+            proc = None
+        elif key in (ord('n'), curses.KEY_RIGHT):
+            if proc: proc.terminate(); pos = min(pos + 1, total - 1); proc = None
+        elif key in (ord('p'), curses.KEY_LEFT):
+            if proc: proc.terminate(); pos = max(pos - 1, 0); proc = None
+        elif key == curses.KEY_UP: speed += 10
+        elif key == curses.KEY_DOWN: speed = max(80, speed - 10)
+
+        if proc and proc.poll() is not None:
+            proc = None
+            if pos < total - 1: pos += 1
+            else: paused = True
+        time.sleep(0.05)
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2: print("Uso: python3 ler livro.txt"); sys.exit(1)
+    curses.wrapper(main, sys.argv[1])

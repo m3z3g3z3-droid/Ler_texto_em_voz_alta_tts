@@ -1,0 +1,109 @@
+=========================================================================
+PIPER BOOK READER TUI - TUTORIAL DE USO
+=========================================================================
+
+DESCRIÇÃO
+-------------------------------------------------------------------------
+O "ler" é um leitor de livros do tipo portátil (não precisa de instalação) em modo terminal (TUI) que utiliza o
+Piper TTS para transformar texto em fala e roda no terminal.
+
+Ele lê arquivos .txt frase por frase, permite trocar voz (atalho v), ajustar
+velocidade (atalho seta para cima ou para baixo) e salvar automaticamente o progresso (faz automaticamente e salva em ~/.local/share/tts_reader/ ou seja /home/SEU_USUARIO/.local/share/tts_reader/) e a barra de espaço pausa
+Pause antes de navegar e de trovar de voz tecla v
+
+-------------------------------------------------------------------------
+
+ESTRUTURA DE PASTAS ESPERADA
+-------------------------------------------------------------------------
+A pasta deve conter:
+
+ler (que é o script.py)
+tutorial.txt (arquivo de texto simples)
+seu_arquivo.txt (arquivo de texto simples)
+/piper/
+
+    pt_BR-faber-medium.onnx
+    pt_BR-cadu-medium.onnx
+    pt_BR-jeff-medium.onnx
+espeak-ng	libespeak-ng.so    libespeak-ng.so.1.52.0.1  libonnxruntime.so.1.14.1  libpiper_phonemize.so.1	    libtashkeel_model.ort  piper_phonemize  pt_BR-cadu-medium.onnx	 pt_BR-faber-medium.onnx       pt_BR-jeff-medium.onnx
+espeak-ng-data	libespeak-ng.so.1  libonnxruntime.so	     libpiper_phonemize.so     libpiper_phonemize.so.1.2.0  piper		   pkgconfig	    pt_BR-cadu-medium.onnx.json  pt_BR-faber-medium.onnx.json  pt_BR-jeff-medium.onnx.json
+
+isto é obtido descompactando o piper_linux_x86_64.tar.gz assim no terminal-> tar -xzf piper_linux_x86_64.tar.gz
+e coloque os arquivos extraídos em uma pasta com o nome piper
+pode se obter todos os arquivos de voz em: https://huggingface.co/rhasspy/piper-voices/tree/main
+https://huggingface.co/rhasspy/piper-voices
+
+-------------------------------------------------------------------------
+
+DEPENDÊNCIAS
+
+DEBIAN / UBUNTU:
+sudo apt update
+sudo apt install python3 alsa-utils libasound2 libstdc++6
+
+ARCH LINUX:
+sudo pacman -S python alsa-utils
+
+TERMUX:
+pkg update
+pkg install python alsa-utils pulseaudio
+pulseaudio --start
+
+-------------------------------------------------------------------------
+
+COMO EXECUTAR
+-------------------------------------------------------------------------
+python3 ler livro.txt
+
+ou, se estiver executável:
+
+chmod +x ler
+./ler livro.txt
+
+-------------------------------------------------------------------------
+
+COMANDOS DURANTE A LEITURA
+-------------------------------------------------------------------------
+
+q            → Sair (salva automaticamente)
+Espaço       → Pausar / Continuar
+n ou →       → Próxima frase
+p ou ←       → Frase anterior
+v            → Trocar voz
+↑            → Aumentar velocidade
+↓            → Diminuir velocidade
+
+-------------------------------------------------------------------------
+
+SALVAMENTO AUTOMÁTICO
+-------------------------------------------------------------------------
+O progresso é salvo em:
+
+~/.local/share/tts_reader/
+
+Ao abrir o mesmo arquivo novamente, a leitura continuará de onde parou.
+
+-------------------------------------------------------------------------
+
+TESTE RÁPIDO DO PIPER
+-------------------------------------------------------------------------
+echo "teste" | ./piper/piper --model piper/pt_BR-faber-medium.onnx \
+--output_raw | aplay -r 22050 -f S16_LE -t raw
+
+Se sair áudio, está funcionando corretamente.
+
+-------------------------------------------------------------------------
+
+PROBLEMAS COMUNS
+
+ERRO: Piper não encontrado
+→ Verifique se o binário está em ./piper/piper
+
+Sem som
+→ Verifique se o aplay está instalado
+→ Teste o comando acima manualmente
+
+-------------------------------------------------------------------------
+
+FIM
+-------------------------------------------------------------------------
