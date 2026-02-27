@@ -31,7 +31,7 @@ seu_arquivo.txt (arquivo de texto simples)
 espeak-ng	libespeak-ng.so    libespeak-ng.so.1.52.0.1  libonnxruntime.so.1.14.1  libpiper_phonemize.so.1	    libtashkeel_model.ort  piper_phonemize  pt_BR-cadu-medium.onnx	pt_BR-faber-medium.onnx       pt_BR-jeff-medium.onnx
 espeak-ng-data	libespeak-ng.so.1  libonnxruntime.so	     libpiper_phonemize.so     libpiper_phonemize.so.1.2.0  piper		   pkgconfig	    pt_BR-cadu-medium.onnx.json  pt_BR-faber-medium.onnx.json  pt_BR-jeff-medium.onnx.json
 
-isto é obtido descompactando o piper_linux_x86_64.tar.gz assim no terminal-> tar -xzf piper_linux_x86_64.tar.gz
+isto é obtido descompactando o piper_linux_x86_64.tar.gz assim no terminal-> tar -xzf piper_linux_x86_64.tar.gz ou em  arm https://github.com/rhasspy/piper/releases
 e coloque os arquivos extraídos em uma pasta com o nome piper
 pode se obter todos os arquivos de voz em: https://huggingface.co/rhasspy/piper-voices/tree/main
 https://huggingface.co/rhasspy/piper-voices
